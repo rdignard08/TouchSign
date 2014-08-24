@@ -1,4 +1,4 @@
-RestGoatee
-==========
+Touch Signing
+=============
 
-The non-boilerplate way to deserialize objects
+Add the ability to capture a person's signature by this view into your app.
