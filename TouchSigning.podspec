@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name     = 'TouchSigning'
-  s.version  = '1.0.0'
+  s.version  = '1.0.1'
   s.license  = 'BSD'
   s.summary  = 'Get an image of a users signature.'
   s.homepage = 'https://github.com/rdignard08/TouchSign'
