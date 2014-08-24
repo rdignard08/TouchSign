@@ -8,14 +8,22 @@
 
 @interface RDDSignatureView ()
 
-@property (nonatomic, strong) NSMutableArray* touches;
+@property (nonatomic, strong) NSMutableArray* committedTouches;
+@property (nonatomic, strong) NSMutableArray* currentTouches;
 @property (nonatomic, strong) UIButton* clearButton;
 
 @end
 
-NSString* const terminatorString = @"{-1, -1}";
+static CGRect __dotRect;
 
 @implementation RDDSignatureView
+
+- (NSMutableArray*) committedTouches {
+    if (!_committedTouches) {
+        _committedTouches = [NSMutableArray array];
+    }
+    return _committedTouches;
+}
 
 - (UIButton*) clearButton {
     if (!_clearButton) {
@@ -24,9 +32,15 @@ NSString* const terminatorString = @"{-1, -1}";
         _clearButton.backgroundColor = self.lineColor;
         _clearButton.frame = CGRectMake(20.0f, 20.0f, 40.0f, 40.0f);
         _clearButton.layer.cornerRadius = MIN(_clearButton.frame.size.width, _clearButton.frame.size.height) / 2.0f;
-        
     }
     return _clearButton;
+}
+
+- (UIColor*) lineColor {
+    if (!_lineColor) {
+        _lineColor = [UIColor blackColor];
+    }
+    return _lineColor;
 }
 
 - (void) setShowsClearButton:(BOOL)showsClearButton {
@@ -38,11 +52,15 @@ NSString* const terminatorString = @"{-1, -1}";
     }
 }
 
+- (void) setDotRadius:(CGFloat)dotRadius {
+    _dotRadius = dotRadius;
+    __dotRect = CGRectMake(-_dotRadius, -_dotRadius, 2*_dotRadius, 2*_dotRadius);
+}
+
 - (void) __setup {
     self.exclusiveTouch = YES;
-    _lineColor = [UIColor blackColor];
     _lineWidth = 1.0f;
-    _dotRadius = 3.0f;
+    self.dotRadius = 2.0f;
     self.showsClearButton = YES;
 }
 
@@ -70,16 +88,8 @@ NSString* const terminatorString = @"{-1, -1}";
     return self;
 }
 
-- (NSMutableArray*) touches {
-    if (!_touches) {
-        _touches = [NSMutableArray array];
-    }
-    return _touches;
-}
-
 - (void) touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
-    [self.touches addObject:terminatorString];
-    [self.touches addObject:NSStringFromCGPoint([[touches anyObject] locationInView:self])];
+    self.currentTouches = [NSMutableArray arrayWithObject:NSStringFromCGPoint([[touches anyObject] locationInView:self])];
 }
 
 - (void) touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event {
@@ -92,7 +102,7 @@ NSString* const terminatorString = @"{-1, -1}";
     thePoint.x = thePoint.x / (CGFloat)touches.count;
     thePoint.y = thePoint.y / (CGFloat)touches.count;
     
-    [self.touches addObject:NSStringFromCGPoint(thePoint)];
+    [self.currentTouches addObject:NSStringFromCGPoint(thePoint)];
     [self setNeedsDisplay];
 }
 
@@ -101,60 +111,43 @@ NSString* const terminatorString = @"{-1, -1}";
 }
 
 - (void) touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
-    [self.touches addObject:terminatorString];
+    [self.committedTouches addObject:self.currentTouches];
+    self.currentTouches = nil;
     [self setNeedsDisplay];
 }
 
 - (void) drawRect:(CGRect)rect {
     [super drawRect:rect];
-    if (self.touches.count) {
         
-        NSMutableArray* touchSegments = [NSMutableArray array];
-        NSMutableArray* currentPointSet = [NSMutableArray array];
+    NSMutableArray* touchSegments = [NSMutableArray arrayWithArray:self.committedTouches];
+    if (self.currentTouches) {
+        [touchSegments addObject:self.currentTouches];
+    }
         
-        for (NSString* pointString in self.touches) {
-            if (pointString == terminatorString) {
-                [touchSegments addObject:currentPointSet];
-                currentPointSet = [NSMutableArray array];
-            } else {
-                [currentPointSet addObject:pointString];
-            }
-        }
-        if (![[touchSegments lastObject] isEqual:currentPointSet]) { /* catch any trailing non-terminated sequences */
-            [touchSegments addObject:currentPointSet];
-        }
-        
-        CGContextRef context = UIGraphicsGetCurrentContext();
-        CGContextSetLineWidth(context, self.lineWidth);
-        CGFloat red, green, blue, alpha;
-        [self.lineColor getRed:&red green:&green blue:&blue alpha:&alpha];
-        CGContextSetRGBStrokeColor(context, red, green, blue, alpha);
-        CGContextSetFillColorWithColor(context, self.lineColor.CGColor);
-        
-        for (NSArray* segment in touchSegments) {
-            switch (segment.count) {
-                case 0: /* no points, draw nothing */
-                    break;
-                case 1: /* a single point, draw a dot */ {
-                    CGPoint thePoint = CGPointFromString(segment[0]);
-                    CGContextFillEllipseInRect(context, CGRectMake(thePoint.x - self.dotRadius, thePoint.y - self.dotRadius, 2 * self.dotRadius, 2 * self.dotRadius));
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetLineWidth(context, self.lineWidth);
+    CGFloat red, green, blue, alpha;
+    [self.lineColor getRed:&red green:&green blue:&blue alpha:&alpha];
+    CGContextSetRGBStrokeColor(context, red, green, blue, alpha);
+    CGContextSetFillColorWithColor(context, self.lineColor.CGColor);
+    
+    for (NSArray* segment in touchSegments) {
+        CGPoint firstPoint = CGPointFromString(segment[0]);
+        if (segment.count == 1) { /* a single point, draw a dot */
+                CGContextFillEllipseInRect(context, CGRectOffset(__dotRect, firstPoint.x, firstPoint.y));
+        } else { /* 2 or more, draw a series of line segments */
+                CGContextMoveToPoint(context, firstPoint.x, firstPoint.y);
+                for (NSUInteger i = 1; i < segment.count; i++) {
+                    CGPoint nextPoint = CGPointFromString(segment[i]);
+                    CGContextAddLineToPoint(context, nextPoint.x, nextPoint.y);
                 }
-                default: /* 2 or more, draw a series of line segments */ {
-                    CGPoint firstPoint = CGPointFromString(segment[0]);
-                    CGContextMoveToPoint(context, firstPoint.x, firstPoint.y);
-                    for (NSUInteger i = 1; i < segment.count; i++) {
-                        CGPoint nextPoint = CGPointFromString(segment[i]);
-                        CGContextAddLineToPoint(context, nextPoint.x, nextPoint.y);
-                    }
-                    CGContextStrokePath(context);
-                }
-            }
+                CGContextStrokePath(context);
         }
     }
 }
 
 - (void) clearPad {
-    _touches = nil;
+    self.committedTouches = nil;
     [self setNeedsDisplay];
 }
 

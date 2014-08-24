@@ -19,7 +19,7 @@
 @property (nonatomic, strong) UIColor* lineColor;
 
 /**
- Provide the desired radius of the dots (a single non-moving tap).  The default is 3.0f.
+ Provide the desired radius of the dots (a single non-moving tap).  The default is 2.0f.
  */
 @property (nonatomic, assign) CGFloat dotRadius;
 
