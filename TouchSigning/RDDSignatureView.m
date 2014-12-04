@@ -11,16 +11,15 @@
 @property (nonatomic, strong) NSMutableArray* committedTouches;
 @property (nonatomic, strong) NSMutableArray* currentTouches;
 @property (nonatomic, strong) UIButton* clearButton;
+@property (nonatomic, assign) CGRect _dotRect;
 
 @end
-
-static CGRect __dotRect;
 
 @implementation RDDSignatureView
 
 - (NSMutableArray*) committedTouches {
     if (!_committedTouches) {
-        _committedTouches = [NSMutableArray array];
+        _committedTouches = [NSMutableArray new];
     }
     return _committedTouches;
 }
@@ -44,47 +43,40 @@ static CGRect __dotRect;
 }
 
 - (void) setShowsClearButton:(BOOL)showsClearButton {
-    _showsClearButton = showsClearButton;
-    if (_showsClearButton) {
-        [self addSubview:self.clearButton];
-    } else {
-        [self.clearButton removeFromSuperview];
+    if (_showsClearButton != showsClearButton) {
+        (_showsClearButton = showsClearButton) ? [self addSubview:self.clearButton] : [self->_clearButton removeFromSuperview];
     }
 }
 
 - (void) setDotRadius:(CGFloat)dotRadius {
-    _dotRadius = dotRadius;
-    __dotRect = CGRectMake(-_dotRadius, -_dotRadius, 2*_dotRadius, 2*_dotRadius);
+    if (_dotRadius != dotRadius) {
+        _dotRadius = dotRadius;
+        self._dotRect = CGRectMake(-_dotRadius, -_dotRadius, 2*_dotRadius, 2*_dotRadius);
+    }
 }
 
 - (void) __setup {
     self.exclusiveTouch = YES;
-    _lineWidth = 1.0f;
+    self.lineWidth = 1.0f;
     self.dotRadius = 2.0f;
     self.showsClearButton = YES;
 }
 
 - (instancetype) initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
-    if (self) {
-        [self __setup];
-    }
+    [self __setup];
     return self;
 }
 
 - (instancetype) initWithCoder:(NSCoder*)aDecoder {
     self = [super initWithCoder:aDecoder];
-    if (self) {
-        [self __setup];
-    }
+    [self __setup];
     return self;
 }
 
 - (instancetype) init {
     self = [super init];
-    if (self) {
-        [self __setup];
-    }
+    [self __setup];
     return self;
 }
 
@@ -134,7 +126,7 @@ static CGRect __dotRect;
     for (NSArray* segment in touchSegments) {
         CGPoint firstPoint = CGPointFromString(segment[0]);
         if (segment.count == 1) { /* a single point, draw a dot */
-                CGContextFillEllipseInRect(context, CGRectOffset(__dotRect, firstPoint.x, firstPoint.y));
+                CGContextFillEllipseInRect(context, CGRectOffset(self._dotRect, firstPoint.x, firstPoint.y));
         } else { /* 2 or more, draw a series of line segments */
                 CGContextMoveToPoint(context, firstPoint.x, firstPoint.y);
                 for (NSUInteger i = 1; i < segment.count; i++) {
