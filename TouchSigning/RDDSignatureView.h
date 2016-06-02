@@ -24,13 +24,6 @@
 @property (nonatomic, assign) CGFloat dotRadius;
 
 /**
- Default is YES.  Determines whether a simple button to clear the pad is shown to the user in the top left.
- 
- TODO: Should be a `lineColor` circle with an X (with color equal to the inverse of `lineColor`)
- */
-@property (nonatomic, assign) BOOL showsClearButton;
-
-/**
  Call this method to clear the saved points.
  */
 - (void) clearPad;
